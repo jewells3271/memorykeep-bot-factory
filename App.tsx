@@ -3,7 +3,7 @@ import { BotFactory } from './components/BotFactory';
 import { ChatWidget } from './components/ChatWidget';
 import { MemorySystem } from './core/MemorySystem';
 import { Bot } from './types/Bot';
-import { Play, Settings, Download, Upload, ExternalLink, Users } from 'lucide-react';
+import { Play, Settings, Download, Upload, ExternalLink, Users, Code } from 'lucide-react';
 import { LeadsDashboard } from './components/LeadsDashboard';
 
 function App() {
@@ -427,6 +427,8 @@ function App() {
                 this.conversationMemory = [];
                 this.isTyping = false;
                 this.activeLeadModule = null;
+                this.storageKey = 'chatbot-messages-' + config.id;
+                this.memoryKey = 'chatbot-memory-' + config.id;
                 
                 // If embedded, start open
                 this.isOpen = isEmbedded;
@@ -434,10 +436,52 @@ function App() {
                 this.init();
             }
             
+            // Load persisted conversation from localStorage
+            loadPersistedConversation() {
+                try {
+                    const savedMessages = localStorage.getItem(this.storageKey);
+                    const savedMemory = localStorage.getItem(this.memoryKey);
+                    if (savedMessages) {
+                        this.messages = JSON.parse(savedMessages);
+                    }
+                    if (savedMemory) {
+                        this.conversationMemory = JSON.parse(savedMemory);
+                    }
+                } catch (e) {
+                    console.warn('Failed to load persisted conversation:', e);
+                }
+            }
+            
+            // Save conversation to localStorage
+            persistConversation() {
+                try {
+                    localStorage.setItem(this.storageKey, JSON.stringify(this.messages));
+                    localStorage.setItem(this.memoryKey, JSON.stringify(this.conversationMemory));
+                } catch (e) {
+                    console.warn('Failed to persist conversation:', e);
+                }
+            }
+            
+            // Clear persisted conversation (useful for /clear command)
+            clearPersistedConversation() {
+                try {
+                    localStorage.removeItem(this.storageKey);
+                    localStorage.removeItem(this.memoryKey);
+                } catch (e) {
+                    console.warn('Failed to clear persisted conversation:', e);
+                }
+            }
+            
             init() {
                 this.bindEvents();
-                // Show greeting if open (embedded) or configured to show on open
-                if (this.isOpen && this.config.widget.greeting.showOnOpen) {
+                // Load any persisted messages first
+                this.loadPersistedConversation();
+                
+                // If there are persisted messages, render them
+                if (this.messages.length > 0) {
+                    this.renderMessages();
+                } else if (this.isOpen && this.config.widget.greeting.showOnOpen) {
+                    // Only show greeting if no persisted messages
                     this.addBotMessage(this.config.widget.greeting.message);
                 }
                 this.renderTypingAvatar();
@@ -458,6 +502,7 @@ function App() {
             toggleChat() {
                 this.isOpen = !this.isOpen;
                 this.updateDisplay();
+                // Show greeting only if no messages exist (including persisted ones)
                 if (this.isOpen && this.messages.length === 0 && this.config.widget.greeting.showOnOpen) {
                     this.addBotMessage(this.config.widget.greeting.message);
                 }
@@ -506,8 +551,17 @@ function App() {
                     return '🤖 **Admin Commands**\\n\\n' +
                         '**/leads** - View all collected leads\\n' +
                         '**/exportleads** - Download leads as CSV file\\n' +
+                        '**/clear** - Clear conversation history\\n' +
                         '**/help** - Show this help message\\n\\n' +
                         '_These commands are for bot owners to manage lead data._';
+                }
+                
+                if (lowerMsg === '/clear') {
+                    this.messages = [];
+                    this.conversationMemory = [];
+                    this.clearPersistedConversation();
+                    this.renderMessages();
+                    return '🧹 Conversation cleared! Your chat history has been reset.';
                 }
                 
                 if (lowerMsg === '/leads') {
@@ -595,6 +649,8 @@ function App() {
                         if (this.conversationMemory.length > 20) {
                             this.conversationMemory = this.conversationMemory.slice(-20);
                         }
+                        // Persist the updated conversation memory
+                        this.persistConversation();
                         return data.response;
                     } else {
                         throw new Error(data.error || 'No response from AI');
@@ -677,8 +733,8 @@ function App() {
                 };
             }
             
-            addUserMessage(message) { this.messages.push({ text: message, sender: 'user' }); this.renderMessages(); }
-            addBotMessage(message) { this.messages.push({ text: message, sender: 'bot' }); this.renderMessages(); }
+            addUserMessage(message) { this.messages.push({ text: message, sender: 'user' }); this.persistConversation(); this.renderMessages(); }
+            addBotMessage(message) { this.messages.push({ text: message, sender: 'bot' }); this.persistConversation(); this.renderMessages(); }
             
             renderMessages() {
                 const container = document.getElementById('chat-messages');

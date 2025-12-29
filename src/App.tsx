@@ -235,12 +235,31 @@ function App() {
         }
 
         // Bot Configuration (API keys removed for security - use Netlify env vars)
-        window.BOT_CONFIG = ${JSON.stringify(bot, (key, value) => {
-      if (key === 'geminiApiKey' || key === 'openRouterApiKey' || key === 'memoryKeepApiKey') {
-        return undefined; // Omit these keys
-      }
-      return value;
-    })};
+        window.BOT_CONFIG = ${(() => {
+        // Create a copy and convert emoji avatars to codepoint format
+        const exportBot = JSON.parse(JSON.stringify(bot));
+
+        // Remove API keys
+        if (exportBot.settings) {
+          delete exportBot.settings.geminiApiKey;
+          delete exportBot.settings.openRouterApiKey;
+          delete exportBot.settings.memoryKeepApiKey;
+        }
+
+        // Convert emoji avatars to codepoint markers [CP:123,456]
+        if (exportBot.widget?.avatars?.bot?.value && exportBot.widget.avatars.bot.type === 'emoji') {
+          const emoji = exportBot.widget.avatars.bot.value;
+          const codePoints = [...emoji].map((c: string) => c.codePointAt(0)).join(',');
+          exportBot.widget.avatars.bot.value = '[CP:' + codePoints + ']';
+        }
+        if (exportBot.widget?.avatars?.user?.value && exportBot.widget.avatars.user.type === 'emoji') {
+          const emoji = exportBot.widget.avatars.user.value;
+          const codePoints = [...emoji].map((c: string) => c.codePointAt(0)).join(',');
+          exportBot.widget.avatars.user.value = '[CP:' + codePoints + ']';
+        }
+
+        return JSON.stringify(exportBot);
+      })()};
         
         // --- Lead Service (Netlify Blobs / localStorage fallback) ---
         class LeadService {
@@ -689,15 +708,81 @@ function App() {
                 }
             }
 
-            getAvatarHtml(config, sender) {
-                const fallback = sender === 'bot' ? '🤖' : '👤';
-                let content = fallback;
-                if (config?.type === 'image' && config.value) {
-                    content = \`<img src="\${config.value}" alt="Avatar">\`;
-                } else if (config?.value) {
-                    content = config.value;
+            // Convert any unicode/emoji characters to HTML entities for safe rendering
+            emojiToEntities(str) {
+                if (!str || typeof str !== 'string') return str;
+                let result = '';
+                for (const char of str) {
+                    const code = char.codePointAt(0);
+                    if (code > 127) {
+                        result += '&' + '#' + code + ';';
+                    } else {
+                        result += char;
+                    }
                 }
-                return \`<div class="avatar">\${content}</div>\`;
+                return result;
+            }
+
+            getAvatarHtml(config, sender) {
+                // Build ampersand at runtime to avoid encoding issues
+                const AMP = String.fromCharCode(38); // &
+                const SAFE_BOT_AVATAR = AMP + '#129302;'; // 🤖 as HTML entity
+                const SAFE_USER_AVATAR = AMP + '#128100;'; // 👤 as HTML entity
+                const fallback = sender === 'bot' ? SAFE_BOT_AVATAR : SAFE_USER_AVATAR;
+                
+                // If no config, use fallback
+                if (!config || !config.value) {
+                    return '<div class="avatar">' + fallback + '</div>';
+                }
+                
+                // For images (upload, library, or image type), render the img tag
+                // Also check if value looks like a data URL or http URL
+                const isImageType = config.type === 'image' || config.type === 'upload' || config.type === 'library';
+                const isImageUrl = config.value && (config.value.startsWith('data:') || config.value.startsWith('http'));
+                if (isImageType || isImageUrl) {
+                    return '<div class="avatar"><img src="' + config.value + '" alt="Avatar"></div>';
+                }
+                
+                const val = config.value;
+                
+                // Check if it's a codepoint marker format [CP:123,456]
+                if (val.startsWith('[CP:') && val.endsWith(']')) {
+                    const codePointStr = val.slice(4, -1);
+                    const codePoints = codePointStr.split(',').map(s => parseInt(s, 10));
+                    let entityContent = '';
+                    for (const cp of codePoints) {
+                        if (!isNaN(cp)) {
+                            entityContent += AMP + '#' + cp + ';';
+                        }
+                    }
+                    if (entityContent) {
+                        return '<div class="avatar">' + entityContent + '</div>';
+                    }
+                    return '<div class="avatar">' + fallback + '</div>';
+                }
+                
+                // For regular emoji strings, try to convert to HTML entities
+                if (!val || val.length === 0 || val.length > 10) {
+                    return '<div class="avatar">' + fallback + '</div>';
+                }
+                
+                // Convert emoji characters to HTML entities
+                let entityContent = '';
+                for (const char of val) {
+                    const code = char.codePointAt(0);
+                    if (code > 127) {
+                        entityContent += AMP + '#' + code + ';';
+                    } else {
+                        entityContent += char;
+                    }
+                }
+                
+                // If conversion produced nothing useful, use fallback
+                if (!entityContent || entityContent === val) {
+                    return '<div class="avatar">' + fallback + '</div>';
+                }
+                
+                return '<div class="avatar">' + entityContent + '</div>';
             }
             
             renderTypingAvatar() {

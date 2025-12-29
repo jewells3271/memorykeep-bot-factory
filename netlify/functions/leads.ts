@@ -38,12 +38,38 @@ export default async (request: Request, context: Context) => {
         const botId = new URL(request.url).searchParams.get("botId") || "default";
         const storeKey = `leads-${botId}`;
 
-        // GET - Retrieve all leads
+        // GET - Retrieve leads
         if (request.method === "GET") {
-            const data = await store.get(storeKey, { type: "json" }) as LeadsStore | null;
+            // botId=all will return a list of all bot IDs that have leads
+            // If botId is specified, returns leads for that specific bot
+            if (botId === "all") {
+                const list = await store.list();
+                const allLeads: Lead[] = [];
 
-            // Check for admin password in query params for security
-            const adminKey = new URL(request.url).searchParams.get("adminKey");
+                // Fetch all blobs starting with leads-
+                for (const key of list.blobs) {
+                    if (key.key.startsWith("leads-")) {
+                        const data = await store.get(key.key, { type: "json" }) as LeadsStore | null;
+                        if (data?.leads) {
+                            allLeads.push(...data.leads);
+                        }
+                    }
+                }
+
+                // Sort all leads by timestamp descending
+                allLeads.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+                return new Response(
+                    JSON.stringify({
+                        success: true,
+                        leads: allLeads,
+                        count: allLeads.length,
+                    }),
+                    { status: 200, headers: corsHeaders }
+                );
+            }
+
+            const data = await store.get(storeKey, { type: "json" }) as LeadsStore | null;
 
             return new Response(
                 JSON.stringify({

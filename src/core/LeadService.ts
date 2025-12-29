@@ -48,8 +48,10 @@ export class LeadService {
      * Save a lead to storage
      */
     static async saveLead(botId: string, data: Record<string, string>, source: string = 'chat_widget'): Promise<SaveLeadResponse> {
-        // Try Netlify function first (if deployed)
-        if (this.isNetlifyDeployment()) {
+        // Try Netlify function if deployed or if we have an API base URL (remote capture)
+        const hasRemoteApi = !!(window as any).BOT_CONFIG?.settings?.apiBaseUrl;
+
+        if (this.isNetlifyDeployment() || hasRemoteApi) {
             try {
                 const response = await fetch(`${this.getApiUrl()}?botId=${botId}`, {
                     method: 'POST',
@@ -65,17 +67,17 @@ export class LeadService {
 
                 if (response.ok) {
                     const result = await response.json();
-                    console.log('✅ Lead saved to Netlify Blobs:', result);
+                    console.log('✅ Lead saved to backend:', result);
                     return result;
                 } else {
-                    console.warn('Netlify function returned error:', response.status);
+                    console.warn('Backend function returned error:', response.status);
                 }
             } catch (error) {
-                console.warn('Could not save to Netlify, falling back to local storage:', error);
+                console.warn('Could not save to backend, falling back to local storage:', error);
             }
         }
 
-        // Fallback to localStorage for local development
+        // Fallback to localStorage
         try {
             const localLeads = this.getLocalLeads(botId);
             const newLead: Lead = {
@@ -96,11 +98,13 @@ export class LeadService {
     }
 
     /**
-     * Get all leads for a bot
+     * Get all leads for a bot (or all bots if botId is 'all')
      */
     static async getLeads(botId: string): Promise<LeadsResponse> {
-        // Try Netlify function first (if deployed)
-        if (this.isNetlifyDeployment()) {
+        // Try Netlify function if deployed or if we have an API base URL
+        const hasRemoteApi = !!(window as any).BOT_CONFIG?.settings?.apiBaseUrl;
+
+        if (this.isNetlifyDeployment() || hasRemoteApi) {
             try {
                 const response = await fetch(`${this.getApiUrl()}?botId=${botId}`, {
                     method: 'GET',
@@ -111,15 +115,19 @@ export class LeadService {
 
                 if (response.ok) {
                     const result = await response.json();
-                    console.log('📋 Leads retrieved from Netlify Blobs:', result);
+                    console.log('📋 Leads retrieved from backend:', result);
                     return result;
                 }
             } catch (error) {
-                console.warn('Could not fetch from Netlify, falling back to local storage:', error);
+                console.warn('Could not fetch from backend, falling back to local storage:', error);
             }
         }
 
-        // Fallback to localStorage
+        // Fallback to localStorage (only works for specific botId)
+        if (botId === 'all') {
+            return { success: false, error: 'Cannot fetch all leads from localStorage' };
+        }
+
         const localLeads = this.getLocalLeads(botId);
         return {
             success: true,

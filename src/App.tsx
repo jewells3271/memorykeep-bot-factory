@@ -3,13 +3,15 @@ import { BotFactory } from './components/BotFactory';
 import { ChatWidget } from './components/ChatWidget';
 import { MemorySystem } from './core/MemorySystem';
 import { Bot } from './types/Bot';
-import { Play, Settings, Download, Upload, ExternalLink } from 'lucide-react';
+import { Play, Settings, Download, Upload, ExternalLink, Users } from 'lucide-react';
+import { LeadsDashboard } from './components/LeadsDashboard';
 
 function App() {
   const [activeBot, setActiveBot] = useState<Bot | null>(null);
   const [bots, setBots] = useState<Bot[]>([]);
   const [previewMode, setPreviewMode] = useState(false);
   const [showMemoryViewer, setShowMemoryViewer] = useState(false);
+  const [showLeadsDashboard, setShowLeadsDashboard] = useState(false);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -236,7 +238,8 @@ function App() {
             }
             
             static async saveLead(botId, data, source = 'chat_widget') {
-                if (this.isNetlifyDeployment()) {
+                const hasRemoteApi = !!window.BOT_CONFIG?.settings?.apiBaseUrl;
+                if (this.isNetlifyDeployment() || hasRemoteApi) {
                     try {
                         const response = await fetch(\`\${this.getApiUrl()}?botId=\${botId}\`, {
                             method: 'POST',
@@ -245,11 +248,11 @@ function App() {
                         });
                         if (response.ok) {
                             const result = await response.json();
-                            console.log('✅ Lead saved to Netlify Blobs:', result);
+                            console.log('✅ Lead saved to backend:', result);
                             return result;
                         }
                     } catch (error) {
-                        console.warn('Netlify save failed, using localStorage:', error);
+                        console.warn('Backend save failed, using localStorage:', error);
                     }
                 }
                 // Fallback to localStorage
@@ -265,16 +268,17 @@ function App() {
             }
             
             static async getLeads(botId) {
-                if (this.isNetlifyDeployment()) {
+                const hasRemoteApi = !!window.BOT_CONFIG?.settings?.apiBaseUrl;
+                if (this.isNetlifyDeployment() || hasRemoteApi) {
                     try {
                         const response = await fetch(\`\${this.getApiUrl()}?botId=\${botId}\`);
                         if (response.ok) {
                             const result = await response.json();
-                            console.log('📋 Leads retrieved from Netlify:', result);
+                            console.log('📋 Leads retrieved from backend:', result);
                             return result;
                         }
                     } catch (error) {
-                        console.warn('Netlify fetch failed, using localStorage:', error);
+                        console.warn('Backend fetch failed, using localStorage:', error);
                     }
                 }
                 const leads = this.getLocalLeads(botId);
@@ -722,6 +726,14 @@ function App() {
                 </button>
 
                 <button
+                  onClick={() => setShowLeadsDashboard(true)}
+                  className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <Users className="w-4 h-4 text-indigo-500" />
+                  <span>Leads Bank</span>
+                </button>
+
+                <button
                   onClick={handleExportBot}
                   disabled={!activeBot}
                   className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
@@ -825,6 +837,13 @@ function App() {
             </div>
           )}
         </div>
+        {/* Leads Dashboard Modal */}
+        {showLeadsDashboard && (
+          <LeadsDashboard
+            bots={bots}
+            onClose={() => setShowLeadsDashboard(false)}
+          />
+        )}
       </div>
     </div>
   );

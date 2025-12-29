@@ -37,9 +37,10 @@ export class LeadService {
     }
 
     private static isNetlifyDeployment(): boolean {
-        // Check if we're running on Netlify
+        // Check if we're running on Netlify or our custom domain
         return window.location.hostname.includes('netlify.app') ||
             window.location.hostname.includes('netlify.live') ||
+            window.location.hostname.includes('cincyweb.pro') ||
             window.location.port === '8888'; // netlify dev
     }
 

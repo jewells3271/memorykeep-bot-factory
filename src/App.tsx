@@ -130,12 +130,15 @@ function App() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; }
         body { margin: 0; padding: 0; font-family: '${bot.widget.theme.fontFamily}', sans-serif; }
-        :root { --primary-color: ${bot.widget.theme.primaryColor}; --secondary-color: ${bot.widget.theme.secondaryColor}; }
+        :root { 
+            --primary-color: ${bot.widget.theme.primaryColor}; 
+            --secondary-color: ${bot.widget.theme.secondaryColor}; 
+        }
         
         .chat-bubble { position: fixed; z-index: 1000; width: 60px; height: 60px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: transform 0.2s; font-size: 24px; }
         .chat-bubble:hover { transform: scale(1.1); }
         
-        .chat-window { position: fixed; z-index: 1001; width: 350px; height: 500px; background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); display: none; flex-direction: column; }
+        .chat-window { position: fixed; z-index: 1001; width: 350px; height: 500px; background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); display: none; flex-direction: column; overflow: hidden; border: 1px solid #e5e7eb; }
         
         /* Embedded Mode Styles */
         body.embedded .chat-bubble { display: none !important; }
@@ -154,35 +157,43 @@ function App() {
         }
         body.embedded .close-button { display: none !important; }
 
-        .chat-header { background: ${bot.widget.header.backgroundColor}; color: ${bot.widget.header.textColor}; padding: 16px; border-radius: 12px 12px 0 0; display: flex; align-items: center; justify-content: space-between; }
-        body.embedded .chat-header { border-radius: 0; }
+        .chat-header { background: ${bot.widget.header.backgroundColor}; color: ${bot.widget.header.textColor}; padding: 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
         
         .chat-header-content { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
-        .chat-header img { height: 32px; width: auto; border-radius: 4px; }
+        .chat-header-banner { height: 32px; width: auto; max-width: 100%; border-radius: 4px; object-fit: contain; }
         .chat-header-text { flex: 1; min-width: 0; }
         .chat-header-title { font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .chat-header-subtitle { font-size: 12px; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .close-button { background: none; border: none; color: inherit; font-size: 20px; cursor: pointer; padding: 4px; margin-left: 8px; flex-shrink: 0; }
-        .chat-messages { flex: 1; padding: 16px; overflow-y: auto; background: #f8fafc; min-height: 0; }
-        .message { margin-bottom: 12px; display: flex; flex-direction: column; }
-        .user-message { align-items: flex-end; }
-        .bot-message { align-items: flex-start; }
-        .message-content { max-width: 80%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; word-wrap: break-word; }
+        
+        .chat-messages { flex: 1; padding: 16px; overflow-y: auto; background: #f8fafc; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+        .message { display: flex; gap: 8px; max-width: 85%; }
+        .user-message { align-self: flex-end; flex-direction: row-reverse; }
+        .bot-message { align-self: flex-start; }
+        
+        .avatar { width: 28px; height: 28px; border-radius: 50%; background: white; border: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; font-size: 14px; }
+        .avatar img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .message-content { padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.4; word-wrap: break-word; }
         .user-message .message-content { background: var(--primary-color); color: white; }
         .bot-message .message-content { background: white; color: #374151; border: 1px solid #e5e7eb; }
-        .chat-input-container { padding: 16px; border-top: 1px solid #e5e7eb; display: flex; gap: 8px; flex-shrink: 0; }
-        .chat-input { flex: 1; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 20px; outline: none; font-size: 14px; }
+        
+        .chat-input-container { padding: 16px; border-top: 1px solid #e5e7eb; display: flex; gap: 8px; flex-shrink: 0; background: white; }
+        .chat-input { flex: 1; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; font-size: 14px; transition: border-color 0.2s; }
         .chat-input:focus { border-color: var(--primary-color); }
-        .send-button { background: var(--primary-color); color: white; border: none; border-radius: 20px; padding: 10px 16px; cursor: pointer; font-size: 14px; }
+        .send-button { background: var(--primary-color); color: white; border: none; border-radius: 8px; padding: 10px 16px; cursor: pointer; font-size: 14px; font-weight: 500; transition: opacity 0.2s; }
         .send-button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .typing-indicator { display: none; padding: 8px 16px; color: #6b7280; font-size: 12px; font-style: italic; }
-        .typing-dots { display: flex; gap: 4px; margin-bottom: 8px; }
-        .typing-dot { width: 6px; height: 6px; background: #6b7280; border-radius: 50%; animation: typing 1.4s infinite ease-in-out; }
+        
+        .typing-indicator { display: none; margin-bottom: 12px; }
+        .typing-content { display: flex; align-items: flex-end; gap: 8px; }
+        .typing-bubble { background: white; border: 1px solid #e5e7eb; padding: 10px 14px; border-radius: 12px; display: flex; gap: 4px; }
+        .typing-dot { width: 6px; height: 6px; background: #9ca3af; border-radius: 50%; animation: typing 1.4s infinite ease-in-out; }
         .typing-dot:nth-child(2) { animation-delay: 0.2s; }
         .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-10px); opacity: 1; } }
+        @keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }
+        
         .bottom-right { bottom: 20px; right: 20px; } .bottom-left { bottom: 20px; left: 20px; } .top-right { top: 20px; right: 20px; } .top-left { top: 20px; left: 20px; }
-        .chat-bottom-right { bottom: 90px; right: 20px; } .chat-bottom-left { bottom: 90px; left: 20px; } .chat-top-right { top: 90px, right: 20px; } .chat-top-left { top: 90px, left: 20px; }
+        .chat-bottom-right { bottom: 90px; right: 20px; } .chat-bottom-left { bottom: 90px; left: 20px; } .chat-top-right { top: 90px; right: 20px; } .chat-top-left { top: 90px, left: 20px; }
     </style>
 </head>
 <body>
@@ -191,7 +202,7 @@ function App() {
     <div id="chat-window" class="chat-window chat-${bot.widget.bubble.position}">
         <div class="chat-header">
             <div class="chat-header-content">
-                ${bot.widget.header.bannerImage && bot.widget.header.showBanner ? `<img src="${bot.widget.header.bannerImage}" alt="Banner">` : ''}
+                ${bot.widget.header.bannerImage && bot.widget.header.showBanner ? `<img src="${bot.widget.header.bannerImage}" class="chat-header-banner" alt="Banner">` : ''}
                 <div class="chat-header-text">
                     <div class="chat-header-title">${bot.widget.header.title}</div>
                     ${bot.widget.header.subtitle ? `<div class="chat-header-subtitle">${bot.widget.header.subtitle}</div>` : ''}
@@ -200,12 +211,20 @@ function App() {
             <button id="close-chat" class="close-button">×</button>
         </div>
         <div id="chat-messages" class="chat-messages"></div>
-        <div id="typing-indicator" class="typing-indicator"><div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>AI is typing...</div>
+        <div id="typing-indicator" class="typing-indicator">
+            <div class="typing-content">
+                <div id="typing-avatar" class="avatar"></div>
+                <div class="typing-bubble">
+                    <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+                </div>
+            </div>
+        </div>
         <div class="chat-input-container">
             <input type="text" id="chat-input" class="chat-input" placeholder="Type your message...">
             <button id="send-button" class="send-button">Send</button>
         </div>
     </div>
+
 
     <script>
         // Check for embed mode
@@ -401,6 +420,7 @@ function App() {
                 if (this.isOpen && this.config.widget.greeting.showOnOpen) {
                     this.addBotMessage(this.config.widget.greeting.message);
                 }
+                this.renderTypingAvatar();
             }
             
             bindEvents() {
@@ -642,7 +662,18 @@ function App() {
             
             renderMessages() {
                 const container = document.getElementById('chat-messages');
-                let html = this.messages.map(msg => \`<div class="message \${msg.sender}-message"><div class="message-content">\${this.formatMessage(msg.text)}</div></div>\`).join('');
+                const avatars = this.config.widget.avatars;
+                const showAvatars = avatars?.showAvatars !== false;
+                
+                let html = this.messages.map(msg => {
+                    const avatarConfig = msg.sender === 'bot' ? avatars?.bot : avatars?.user;
+                    const avatarHtml = showAvatars ? this.getAvatarHtml(avatarConfig, msg.sender) : '';
+                    let messageHtml = '<div class="message ' + msg.sender + '-message">';
+                    messageHtml += avatarHtml;
+                    messageHtml += '<div class="message-content">' + this.formatMessage(msg.text) + '</div>';
+                    messageHtml += '</div>';
+                    return messageHtml;
+                }).join('');
                 
                 // Add lead form if active
                 if (this.activeLeadModule) {
@@ -655,6 +686,29 @@ function App() {
                 // Bind events after rendering
                 if (this.activeLeadModule) {
                     this.bindLeadFormEvents();
+                }
+            }
+
+            getAvatarHtml(config, sender) {
+                const fallback = sender === 'bot' ? '🤖' : '👤';
+                let content = fallback;
+                if (config?.type === 'image' && config.value) {
+                    content = \`<img src="\${config.value}" alt="Avatar">\`;
+                } else if (config?.value) {
+                    content = config.value;
+                }
+                return \`<div class="avatar">\${content}</div>\`;
+            }
+            
+            renderTypingAvatar() {
+                const avatars = this.config.widget.avatars;
+                const typingAvatar = document.getElementById('typing-avatar');
+                if (!typingAvatar) return;
+
+                if (avatars?.showAvatars !== false) {
+                    typingAvatar.innerHTML = this.getAvatarHtml(avatars?.bot, 'bot');
+                } else {
+                    typingAvatar.style.display = 'none';
                 }
             }
             

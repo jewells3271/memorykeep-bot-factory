@@ -132,10 +132,11 @@ function App() {
         body { margin: 0; padding: 0; font-family: '${bot.widget.theme.fontFamily}', sans-serif; }
         :root { 
             --primary-color: ${bot.widget.theme.primaryColor}; 
-            --secondary-color: ${bot.widget.theme.secondaryColor}; 
+            --secondary-color: ${bot.widget.theme.secondaryColor};
+            --bubble-color: ${bot.widget.bubble.color}; 
         }
         
-        .chat-bubble { position: fixed; z-index: 1000; width: 60px; height: 60px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: transform 0.2s; font-size: 24px; }
+        .chat-bubble { position: fixed; z-index: 1000; width: 60px; height: 60px; border-radius: 50%; background: var(--bubble-color); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: transform 0.2s; font-size: 24px; }
         .chat-bubble:hover { transform: scale(1.1); }
         
         .chat-window { position: fixed; z-index: 1001; width: 350px; height: 500px; background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); display: none; flex-direction: column; overflow: hidden; border: 1px solid #e5e7eb; }

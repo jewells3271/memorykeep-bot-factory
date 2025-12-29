@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BotModule } from '../../types/Bot';
 import { MemorySystem } from '../../core/MemorySystem';
-import { MemoryKeepCloud } from '../../core/MemoryKeepCloud';
-import { Settings, Play, Pause, Clock, Mail, Calendar, Plus, Edit2, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Settings, Play, Pause, Clock, Mail, Calendar, Plus, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface AutomationModuleProps {
   module: BotModule;
@@ -20,9 +19,8 @@ interface AutomationJob {
   status: 'pending' | 'running' | 'completed' | 'failed';
 }
 
-export const AutomationModule: React.FC<AutomationModuleProps> = ({ module, botId }) => {
+export const AutomationModule: React.FC<AutomationModuleProps> = ({ botId }) => {
   const [jobs, setJobs] = useState<AutomationJob[]>([]);
-  const [selectedJob, setSelectedJob] = useState<AutomationJob | null>(null);
   const [workerStatus, setWorkerStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
 
   useEffect(() => {
@@ -32,9 +30,13 @@ export const AutomationModule: React.FC<AutomationModuleProps> = ({ module, botI
 
   const loadJobs = async () => {
     try {
-      const jobMemory = await MemoryKeepCloud.getMemory(botId, 'job');
-      if (jobMemory && Array.isArray(jobMemory)) {
-        setJobs(jobMemory);
+      const jobMemories = await MemorySystem.getMemories(botId, 'job');
+      if (jobMemories.length > 0) {
+        // Get the most recent job memory's content
+        const latestJobMemory = jobMemories[jobMemories.length - 1];
+        if (Array.isArray(latestJobMemory.content)) {
+          setJobs(latestJobMemory.content);
+        }
       }
     } catch (error) {
       console.error('Failed to load automation jobs:', error);
@@ -43,8 +45,8 @@ export const AutomationModule: React.FC<AutomationModuleProps> = ({ module, botI
 
   const checkWorkerStatus = async () => {
     try {
-      // Try to get any memory to test connection
-      const testMemory = await MemoryKeepCloud.getMemory(botId, 'core');
+      // Check if we can access local storage (always works)
+      await MemorySystem.getMemories(botId, 'core');
       setWorkerStatus('connected');
     } catch (error) {
       setWorkerStatus('disconnected');
@@ -53,11 +55,11 @@ export const AutomationModule: React.FC<AutomationModuleProps> = ({ module, botI
 
   const saveJobs = async (updatedJobs: AutomationJob[]) => {
     try {
-      await MemoryKeepCloud.overwriteMemory(botId, 'job', updatedJobs);
+      await MemorySystem.overwriteMemory(botId, 'job', updatedJobs);
       setJobs(updatedJobs);
-      
+
       // Log the automation update
-      await MemoryKeepCloud.logExperience(botId, {
+      await MemorySystem.logExperience(botId, {
         type: 'automation_update',
         jobCount: updatedJobs.length,
         timestamp: new Date().toISOString()
@@ -117,22 +119,20 @@ export const AutomationModule: React.FC<AutomationModuleProps> = ({ module, botI
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Automation Center</h2>
             <p className="text-gray-600">Manage automated tasks that run on your MemoryKeep worker.</p>
           </div>
-          
+
           <div className="flex items-center space-x-3">
-            <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm ${
-              workerStatus === 'connected' 
-                ? 'bg-green-100 text-green-800' 
-                : workerStatus === 'disconnected'
+            <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm ${workerStatus === 'connected'
+              ? 'bg-green-100 text-green-800'
+              : workerStatus === 'disconnected'
                 ? 'bg-red-100 text-red-800'
                 : 'bg-gray-100 text-gray-800'
-            }`}>
-              <div className={`w-2 h-2 rounded-full ${
-                workerStatus === 'connected' ? 'bg-green-500' : 
+              }`}>
+              <div className={`w-2 h-2 rounded-full ${workerStatus === 'connected' ? 'bg-green-500' :
                 workerStatus === 'disconnected' ? 'bg-red-500' : 'bg-gray-500'
-              }`}></div>
+                }`}></div>
               <span>
-                {workerStatus === 'connected' ? 'Worker Connected' : 
-                 workerStatus === 'disconnected' ? 'Worker Offline' : 'Checking...'}
+                {workerStatus === 'connected' ? 'Worker Connected' :
+                  workerStatus === 'disconnected' ? 'Worker Offline' : 'Checking...'}
               </span>
             </div>
           </div>
@@ -178,24 +178,23 @@ export const AutomationModule: React.FC<AutomationModuleProps> = ({ module, botI
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
                         {job.status}
                       </span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        job.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${job.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
                         {job.enabled ? 'Enabled' : 'Disabled'}
                       </span>
                     </div>
-                    
+
                     <p className="text-gray-600 mb-3">
                       Type: <span className="font-medium">{job.type.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
                     </p>
-                    
+
                     {job.schedule && (
                       <p className="text-sm text-gray-500 mb-2">
                         <Clock className="w-4 h-4 inline mr-1" />
                         Schedule: {job.schedule}
                       </p>
                     )}
-                    
+
                     {job.lastRun && (
                       <p className="text-sm text-gray-500">
                         Last run: {new Date(job.lastRun).toLocaleString()}
@@ -203,25 +202,17 @@ export const AutomationModule: React.FC<AutomationModuleProps> = ({ module, botI
                     )}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => handleJobToggle(job.id)}
-                    className={`p-2 rounded-md transition-colors ${
-                      job.enabled 
-                        ? 'text-green-600 hover:bg-green-50' 
-                        : 'text-gray-400 hover:bg-gray-50'
-                    }`}
+                    className={`p-2 rounded-md transition-colors ${job.enabled
+                      ? 'text-green-600 hover:bg-green-50'
+                      : 'text-gray-400 hover:bg-gray-50'
+                      }`}
                     title={job.enabled ? 'Disable job' : 'Enable job'}
                   >
                     {job.enabled ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                  </button>
-                  <button
-                    onClick={() => setSelectedJob(job)}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-md transition-colors"
-                    title="Edit job"
-                  >
-                    <Edit2 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleJobDelete(job.id)}
@@ -376,11 +367,10 @@ export const AutomationConfigComponent: React.FC<AutomationConfigComponentProps>
                 <div className="flex space-x-2">
                   <button
                     onClick={() => handleJobUpdate(job.id, { enabled: !job.enabled })}
-                    className={`px-3 py-1 text-sm rounded-md ${
-                      job.enabled 
-                        ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                    }`}
+                    className={`px-3 py-1 text-sm rounded-md ${job.enabled
+                      ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                      }`}
                   >
                     {job.enabled ? 'Disable' : 'Enable'}
                   </button>

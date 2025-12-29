@@ -1,6 +1,5 @@
 import { Bot } from '../types/Bot';
 import { Memory } from '../types/Memory';
-import { MemoryKeepCloud } from './MemoryKeepCloud';
 import { getDB } from './db';
 
 export class MemorySystem {
@@ -31,6 +30,11 @@ export class MemorySystem {
         primaryColor: '#3b82f6',
         secondaryColor: '#64748b',
         fontFamily: 'Inter, sans-serif'
+      },
+      avatars: {
+        bot: { type: 'emoji', value: '🤖' },
+        user: { type: 'emoji', value: '👤' },
+        showAvatars: true
       }
     };
   }
@@ -77,6 +81,10 @@ export class MemorySystem {
         theme: {
           ...defaultWidget.theme,
           ...(bot.widget?.theme || {})
+        },
+        avatars: {
+          ...defaultWidget.avatars,
+          ...(bot.widget?.avatars || {})
         }
       },
       settings: {
@@ -106,18 +114,6 @@ export class MemorySystem {
     try {
       await db.put('bots', normalizedBot);
       console.log('Bot saved locally to IndexedDB');
-
-      // Sync with cloud in the background (optimistic update) - fail silently since cloud may be down
-      MemoryKeepCloud.updateCore(normalizedBot.id, {
-        bot: normalizedBot,
-        type: 'bot_config',
-        timestamp: new Date().toISOString()
-      }).then(success => {
-        if (success) {
-          console.log(`Bot ${normalizedBot.id} synced to cloud.`);
-        }
-        // Silently ignore cloud sync failures - local storage is the source of truth
-      });
     } catch (error) {
       console.error('Failed to save bot to IndexedDB:', error);
       throw error;
@@ -173,14 +169,6 @@ export class MemorySystem {
     try {
       await db.put('memories', memory);
       console.log(`Memory [${type}] saved locally to IndexedDB`);
-
-      // Sync with cloud in the background - fail silently since cloud may be down
-      MemoryKeepCloud.logMemory(botId, type as any, content).then(result => {
-        if (result.success) {
-          console.log(`Memory [${type}] for bot ${botId} synced to cloud.`);
-        }
-        // Silently ignore cloud sync failures
-      });
     } catch (error) {
       console.error('Failed to save memory to IndexedDB:', error);
       throw error;
@@ -250,8 +238,8 @@ export class MemorySystem {
   }
 
   static async addJobEntry(botId: string, job: object): Promise<void> {
-    // Jobs are primarily for automation worker, so we only send to cloud
-    await MemoryKeepCloud.addJobEntry(botId, job);
+    // Jobs stored locally - cloud sync removed
+    await this.saveMemory(botId, 'job', job);
   }
 
   static async migrateFromLocalStorage(): Promise<void> {
